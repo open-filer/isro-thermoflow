@@ -1,45 +1,263 @@
-"use client";
-import { useState, useEffect } from "react";
 
-export default function MissionControl() {
-  const [metrics, setMetrics] = useState<any>(null);
-  const [images, setImages] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [terminalText, setTerminalText] = useState("");
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import styles from "./page.module.css";
 
-  const logs = [
-    "[SYS] Uplink established with INSAT-3DS/3DR.",
-    "[DATA] Parsing HDF5 Thermal Infrared (TIR1) arrays...",
-    "[MATH] ThermoFlowNet calculating non-linear optical flow...",
-    "[PHYS] Applying adiabatic cooling residuals...",
-    "[AI] Synthesizing intermediate 15-Minute frame...",
-    "[DONE] Verification Complete. Transmitting to UI."
-  ];
+type Metrics = {
+  psnr?: string | number;
+  ssim?: string | number;
+  fsim?: string | number;
+  mse?: string | number;
+};
+
+type NavItem = {
+  label: string;
+  href: string;
+};
+
+const navItems: NavItem[] = [
+  { label: "Home", href: "#home" },
+  { label: "Workflow", href: "#workflow" },
+  { label: "Studio", href: "#studio" },
+  { label: "FAQ", href: "#faq" },
+];
+
+const stats = [
+  { label: "Frames synthesized", value: 48, suffix: "M" },
+  { label: "Median processing time", value: 15, suffix: "s" },
+  { label: "Teams onboarded", value: 940, suffix: "+" },
+  { label: "Data fidelity target", value: 99, suffix: "%" },
+];
+
+const workflow = [
+  {
+    title: "Ingest sparse frames",
+    text: "Upload source captures, telemetry, or product signals from any interval.",
+  },
+  {
+    title: "Model missing motion",
+    text: "Interpolator estimates the change curve between moments without forcing noisy assumptions.",
+  },
+  {
+    title: "Ship cleaner sequences",
+    text: "Export validated intermediate states for teams, dashboards, and production pipelines.",
+  },
+];
+
+const faqs = [
+  {
+    question: "What does Interpolator do?",
+    answer:
+      "Interpolator creates trustworthy intermediate states between two known data points, frames, or observations so teams can analyze smoother change over time.",
+  },
+  {
+    question: "Can it connect to our existing backend?",
+    answer:
+      "Yes. This page keeps the existing evaluate endpoint flow intact for local file synthesis while presenting it inside the new product experience.",
+  },
+  {
+    question: "Is this only for satellite imagery?",
+    answer:
+      "No. The workflow is useful for scientific imagery, product analytics, operations timelines, and any sparse signal that needs clearer in-between states.",
+  },
+  {
+    question: "Do you support private deployments?",
+    answer:
+      "Scale plans can run inside controlled environments with custom retention, audit logging, and integration support.",
+  },
+];
+
+function useCountUp(target: number, active: boolean) {
+  const [count, setCount] = useState(0);
 
   useEffect(() => {
-    if (loading) {
-      let i = 0;
-      const interval = setInterval(() => {
-        setTerminalText((prev) => prev + "\n" + logs[i]);
-        i++;
-        if (i === logs.length) clearInterval(interval);
-      }, 700);
-      return () => clearInterval(interval);
-    } else {
-      setTerminalText("");
-    }
-  }, [loading]);
+    if (!active) return;
 
-  const handleEvaluation = async (e: React.FormEvent) => {
-    e.preventDefault();
+    let frame = 0;
+    const totalFrames = 72;
+    const timer = window.setInterval(() => {
+      frame += 1;
+      const progress = 1 - Math.pow(1 - frame / totalFrames, 3);
+      setCount(Math.round(target * progress));
+
+      if (frame >= totalFrames) {
+        window.clearInterval(timer);
+        setCount(target);
+      }
+    }, 16);
+
+    return () => window.clearInterval(timer);
+  }, [active, target]);
+
+  return count;
+}
+
+function StatCard({
+  label,
+  value,
+  suffix,
+  active,
+}: {
+  label: string;
+  value: number;
+  suffix: string;
+  active: boolean;
+}) {
+  const count = useCountUp(value, active);
+
+  return (
+    <div className={styles.statCard}>
+      <strong>
+        {count}
+        {suffix}
+      </strong>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+export default function InterpolatorPage() {
+  const videoSrc = "/goes19_animation_h264.mp4?v=1";
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [pageReady, setPageReady] = useState(false);
+  const [visibleSections, setVisibleSections] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [statsVisible, setStatsVisible] = useState(false);
+  const [openFaq, setOpenFaq] = useState(0);
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterDone, setNewsletterDone] = useState(false);
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [terminalText, setTerminalText] = useState("");
+  const statsRef = useRef<HTMLDivElement | null>(null);
+  const outputVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  const logs = useMemo(
+    () => [
+      "[SYS] Link established.",
+      "[DATA] Reading source frames.",
+      "[MODEL] Estimating temporal flow.",
+      "[CHECK] Calculating fidelity metrics.",
+      "[DONE] Intermediate frame ready.",
+    ],
+    [],
+  );
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setPageReady(true), 850);
+    if (!window.location.hash) {
+      window.history.scrollRestoration = "manual";
+      window.scrollTo({ top: 0, left: 0 });
+    }
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    let frame = 0;
+    const updateScroll = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        document.documentElement.style.setProperty(
+          "--scroll-y",
+          String(window.scrollY),
+        );
+      });
+    };
+
+    updateScroll();
+    window.addEventListener("scroll", updateScroll, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", updateScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    const sections = document.querySelectorAll<HTMLElement>("[data-reveal]");
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const id = entry.target.getAttribute("id");
+            if (id) {
+              setVisibleSections((current) => {
+                const next = new Set(current);
+                next.add(id);
+                return next;
+              });
+            }
+          }
+        });
+      },
+      { threshold: 0.18 },
+    );
+
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!statsRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setStatsVisible(entry.isIntersecting),
+      { threshold: 0.35 },
+    );
+
+    observer.observe(statsRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      return;
+    }
+
+    let i = 0;
+    const interval = window.setInterval(() => {
+      setTerminalText((prev) => `${prev}${prev ? "\n" : ""}${logs[i]}`);
+      i += 1;
+      if (i === logs.length) window.clearInterval(interval);
+    }, 520);
+
+    return () => window.clearInterval(interval);
+  }, [loading, logs]);
+
+  useEffect(() => {
+    const video = outputVideoRef.current;
+    if (!video) return;
+
+    video.load();
+    void video.play().catch(() => {
+      // Muted inline autoplay should work; this keeps failures non-breaking.
+    });
+  }, []);
+
+  const handleNavigation = (href: string) => {
+    setMenuOpen(false);
+    document.querySelector(href)?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleNewsletter = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!newsletterEmail.trim()) return;
+    setNewsletterDone(true);
+    setNewsletterEmail("");
+  };
+
+  const handleEvaluation = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setTerminalText("");
     setLoading(true);
 
-    const form = e.target as HTMLFormElement;
-    const file1 = (form[0] as HTMLInputElement).files?.[0];
-    const file2 = (form[1] as HTMLInputElement).files?.[0];
+    const form = event.currentTarget;
+    const file1 = (form.elements.namedItem("file_t0") as HTMLInputElement)
+      .files?.[0];
+    const file2 = (form.elements.namedItem("file_t30") as HTMLInputElement)
+      .files?.[0];
 
     if (!file1 || !file2) {
-      alert("System Alert: Both T=00:00 and T=00:30 files required.");
+      window.alert("Both source files are required.");
       setLoading(false);
       return;
     }
@@ -49,156 +267,278 @@ export default function MissionControl() {
     formData.append("file_t30", file2);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/evaluate", {
+      const response = await fetch("http://127.0.0.1:8000/evaluate", {
         method: "POST",
         body: formData,
       });
-      const data = await res.json();
+      const data = await response.json();
       setMetrics(data.metrics);
-      setImages(data.images);
     } catch (error) {
       console.error("API Error", error);
-      alert("CRITICAL ERROR: AI Backend is offline.");
+      window.alert("Interpolator backend is offline.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
+  const revealClass = (id: string) =>
+    `${styles.reveal} ${visibleSections.has(id) ? styles.revealed : ""}`;
+
   return (
-    <div className="min-h-screen bg-[#050505] text-slate-300 font-sans selection:bg-cyan-500">
-      {/* CSS Animation Logic for the Radar Loop */}
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes radarLoop1 { 0%, 25% { opacity: 1; z-index: 3; } 33%, 100% { opacity: 0; z-index: 1; } }
-        @keyframes radarLoop2 { 0%, 25% { opacity: 0; z-index: 1; } 33%, 58% { opacity: 1; z-index: 3; } 66%, 100% { opacity: 0; z-index: 1; } }
-        @keyframes radarLoop3 { 0%, 58% { opacity: 0; z-index: 1; } 66%, 91% { opacity: 1; z-index: 3; } 100% { opacity: 0; z-index: 1; } }
-        .frame-1 { animation: radarLoop1 3s infinite; }
-        .frame-2 { animation: radarLoop2 3s infinite; }
-        .frame-3 { animation: radarLoop3 3s infinite; }
-      `}} />
+    <>
+      <div className={`${styles.preloader} ${pageReady ? styles.loaded : ""}`}>
+        <div className={styles.loaderOrb} />
+        <span>Preparing Interpolator</span>
+      </div>
 
-      {/* HEADER - SPACEX VIBE */}
-      <header className="p-4 border-b border-white/10 bg-black flex justify-between items-center sticky top-0 z-50">
-        <div className="flex items-center gap-4">
-          <div className="h-8 w-8 bg-cyan-500 rounded-sm flex items-center justify-center font-black text-black">AI</div>
-          <div>
-            <h1 className="text-xl font-bold tracking-[0.2em] text-white">ISRO ORBITAL COMMAND</h1>
-            <p className="text-[10px] font-mono text-cyan-500 tracking-widest">THERMOFLOW-NET // INSAT TEMPORAL UPSCALING</p>
-          </div>
-        </div>
-        <div className="flex gap-6 text-[10px] font-mono text-slate-500 hidden md:flex">
-          <div><span className="text-slate-300">ORBIT:</span> GEOSTATIONARY</div>
-          <div><span className="text-slate-300">ALTITUDE:</span> 35,786 KM</div>
-          <div><span className="text-slate-300">SENSOR:</span> TIR-1 (10µm)</div>
-          <div className="flex items-center gap-2"><div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div> SYSTEM ACTIVE</div>
-        </div>
-      </header>
+      <button
+        className={styles.mobileMenuButton}
+        type="button"
+        onClick={() => setMenuOpen((value) => !value)}
+        aria-label="Toggle navigation"
+        aria-expanded={menuOpen}
+      >
+        <span />
+        <span />
+        <span />
+      </button>
 
-      <main className="p-6 max-w-screen-2xl mx-auto grid grid-cols-12 gap-6">
-        
-        {/* LEFT COLUMN: CONTROLS & TERMINAL */}
-        <div className="col-span-12 lg:col-span-3 space-y-6">
-          
-          <div className="bg-[#0a0a0a] p-6 rounded-lg border border-white/10 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-cyan-500"></div>
-            <h2 className="text-sm font-bold tracking-widest text-white mb-6 flex items-center gap-2">
-              <span className="text-cyan-500">01 //</span> INGEST TELEMETRY
-            </h2>
-            
-            <form onSubmit={handleEvaluation} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-mono text-slate-500 mb-1">T=00:00 HRS (FRAME 1) [.h5]</label>
-                <input type="file" required className="w-full text-xs text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-bold file:bg-cyan-900/30 file:text-cyan-400 hover:file:bg-cyan-900/50 cursor-pointer" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-mono text-slate-500 mb-1">T=00:30 HRS (FRAME 2) [.h5]</label>
-                <input type="file" required className="w-full text-xs text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-bold file:bg-cyan-900/30 file:text-cyan-400 hover:file:bg-cyan-900/50 cursor-pointer" />
-              </div>
-              <button type="submit" disabled={loading} className="w-full mt-4 bg-white hover:bg-slate-200 text-black text-xs tracking-widest font-bold py-3 rounded transition-all disabled:opacity-50">
-                {loading ? "PROCESSING..." : "INITIATE SYNTHESIS"}
+      <aside className={`${styles.sidebar} ${menuOpen ? styles.sidebarOpen : ""}`}>
+        <a className={styles.brand} href="#home" onClick={() => setMenuOpen(false)}>
+          <span className={styles.brandMark}>I</span>
+          <span>Interpolator</span>
+        </a>
+
+        <nav className={styles.nav} aria-label="Primary navigation">
+          {navItems.map((item) => (
+            <button
+              key={item.href}
+              type="button"
+              onClick={() => handleNavigation(item.href)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        <div className={styles.sidebarPanel}>
+          <span>Current mode</span>
+          <strong>Signal synthesis</strong>
+          <p>Clean intermediate states from sparse source frames.</p>
+        </div>
+      </aside>
+
+      <main className={styles.page}>
+        <section id="home" className={styles.hero} data-reveal>
+          <div className={styles.parallaxBack} />
+          <div className={styles.parallaxMid} />
+          <div className={styles.heroCopy}>
+            <h1>Interpolation that makes missing moments usable.</h1>
+            <p>
+              Interpolator turns sparse frames and irregular signals into clear
+              intermediate states your team can inspect, compare, and ship.
+            </p>
+            <div className={styles.heroActions}>
+              <button type="button" onClick={() => handleNavigation("#studio")}>
+                Try the studio
               </button>
+              <button type="button" onClick={() => handleNavigation("#workflow")}>
+                See workflow
+              </button>
+            </div>
+          </div>
+
+          <div className={styles.heroVisual} aria-label="Interpolator preview">
+            <div className={styles.previewHeader}>
+              <span />
+              <span />
+              <span />
+            </div>
+            <div className={styles.previewGrid}>
+              <div className={styles.previewFrame} aria-label="Source frame preview" />
+              <div className={styles.previewCenter}>
+                <strong>00:15</strong>
+                <span>Generated midpoint</span>
+              </div>
+              <div className={styles.previewFrameAlt} aria-label="Target frame preview" />
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="stats"
+          className={`${styles.section} ${revealClass("stats")}`}
+          data-reveal
+          ref={statsRef}
+        >
+          <div className={styles.sectionIntro}>
+            <h2>Built for change-heavy work.</h2>
+            <p>
+              Fast enough for daily reviews. Controlled enough for production
+              pipelines where each generated step matters.
+            </p>
+          </div>
+          <div className={styles.statsGrid}>
+            {stats.map((stat) => (
+              <StatCard
+                key={stat.label}
+                label={stat.label}
+                value={stat.value}
+                suffix={stat.suffix}
+                active={statsVisible}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section
+          id="workflow"
+          className={`${styles.section} ${revealClass("workflow")}`}
+          data-reveal
+        >
+          <div className={styles.sectionIntro}>
+            <h2>One clean path from input to answer.</h2>
+            <p>
+              The workflow stays simple: ingest, synthesize, compare, and move
+              the reliable result downstream.
+            </p>
+          </div>
+          <div className={styles.workflowGrid}>
+            {workflow.map((item, index) => (
+              <article className={styles.glassCard} key={item.title}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section
+          id="studio"
+          className={`${styles.section} ${styles.studioSection} ${revealClass(
+            "studio",
+          )}`}
+          data-reveal
+        >
+          <div className={styles.sectionIntro}>
+            <h2>Local evaluation studio.</h2>
+            <p>
+              Upload two source files and call the existing backend synthesis
+              endpoint without leaving the landing page.
+            </p>
+          </div>
+
+          <div className={styles.studioShell}>
+            <form className={styles.uploadPanel} onSubmit={handleEvaluation}>
+              <label>
+                <span>Frame at T=00:00</span>
+                <input name="file_t0" type="file" required />
+              </label>
+              <label>
+                <span>Frame at T=00:30</span>
+                <input name="file_t30" type="file" required />
+              </label>
+              <button type="submit" disabled={loading}>
+                {loading ? "Synthesizing" : "Run interpolation"}
+              </button>
+              <pre>{terminalText || "Backend console will appear here."}</pre>
             </form>
-          </div>
 
-          <div className="bg-[#050505] p-5 rounded-lg border border-white/10 h-64 overflow-hidden shadow-[inset_0_0_20px_rgba(0,0,0,1)]">
-            <h2 className="text-[10px] font-mono tracking-widest text-slate-500 mb-4 border-b border-white/10 pb-2">SYSTEM CONSOLE</h2>
-            <div className="font-mono text-xs text-cyan-400/80">
-              <pre className="whitespace-pre-wrap">{terminalText}</pre>
-              {loading && <span className="animate-pulse">_</span>}
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT COLUMN: DASHBOARD & RADAR */}
-        <div className="col-span-12 lg:col-span-9 space-y-6">
-          
-          {/* METRICS ROW */}
-          <div className="grid grid-cols-4 gap-4">
-            <div className="bg-[#0a0a0a] p-5 rounded-lg border border-white/10">
-              <h3 className="text-[10px] font-mono text-slate-500 mb-1">FIDELITY (PSNR)</h3>
-              <p className="text-2xl font-light text-white">{metrics ? metrics.psnr : "---"}</p>
-            </div>
-            <div className="bg-[#0a0a0a] p-5 rounded-lg border border-white/10">
-              <h3 className="text-[10px] font-mono text-slate-500 mb-1">STRUCTURE (SSIM)</h3>
-              <p className="text-2xl font-light text-white">{metrics ? metrics.ssim : "---"}</p>
-            </div>
-            <div className="bg-[#0a0a0a] p-5 rounded-lg border border-white/10">
-              <h3 className="text-[10px] font-mono text-slate-500 mb-1">FEATURES (FSIM)</h3>
-              <p className="text-2xl font-light text-white">{metrics ? metrics.fsim : "---"}</p>
-            </div>
-            <div className="bg-[#0a0a0a] p-5 rounded-lg border border-white/10">
-              <h3 className="text-[10px] font-mono text-slate-500 mb-1">PIXEL ERROR (MSE)</h3>
-              <p className="text-2xl font-light text-red-400">{metrics ? metrics.mse : "---"}</p>
-            </div>
-          </div>
-
-          {/* VISUAL ANALYSIS */}
-          {metrics && images && !loading && (
-            <div className="grid grid-cols-12 gap-6 animate-in fade-in duration-700">
-              
-              {/* STATIC FRAMES */}
-              <div className="col-span-12 md:col-span-8 bg-[#0a0a0a] p-6 rounded-lg border border-white/10">
-                 <h2 className="text-sm font-bold tracking-widest text-white mb-6 flex items-center gap-2">
-                  <span className="text-cyan-500">02 //</span> SYNTHESIS OUTPUT
-                </h2>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <img src={`data:image/png;base64,${images.t0}`} className="w-full aspect-square object-cover rounded border border-white/10" />
-                    <p className="text-[10px] font-mono text-center text-slate-500">INPUT: 00:00</p>
+            <div className={styles.resultPanel}>
+              <div className={styles.metricGrid}>
+                {["psnr", "ssim", "fsim", "mse"].map((key) => (
+                  <div key={key}>
+                    <span>{key.toUpperCase()}</span>
+                    <strong>
+                      {metrics?.[key as keyof Metrics] ?? "--"}
+                    </strong>
                   </div>
-                  <div className="space-y-2 relative">
-                    <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded"></div>
-                    <img src={`data:image/png;base64,${images.predicted}`} className="relative w-full aspect-square object-cover rounded border border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.3)]" />
-                    <p className="text-[10px] font-mono text-center text-cyan-400 font-bold">AI SYNTHESIS: 00:15</p>
-                  </div>
-                  <div className="space-y-2">
-                    <img src={`data:image/png;base64,${images.t30}`} className="w-full aspect-square object-cover rounded border border-white/10" />
-                    <p className="text-[10px] font-mono text-center text-slate-500">INPUT: 00:30</p>
-                  </div>
-                </div>
+                ))}
               </div>
 
-              {/* LIVE RADAR */}
-              <div className="col-span-12 md:col-span-4 bg-[#0a0a0a] p-6 rounded-lg border border-white/10 flex flex-col items-center justify-center">
-                 <h2 className="text-sm font-bold tracking-widest text-white mb-6 flex items-center gap-2 w-full">
-                  <span className="animate-pulse h-2 w-2 bg-red-500 rounded-full inline-block"></span> 
-                  LIVE RADAR
-                </h2>
-                <div className="relative w-full max-w-[250px] aspect-square rounded-full overflow-hidden border-2 border-slate-800 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-                  {/* Radar Scanning Line Effect */}
-                  <div className="absolute inset-0 border-4 border-cyan-500/20 rounded-full z-10"></div>
-                  <div className="absolute top-0 left-1/2 w-[1px] h-1/2 bg-cyan-500/50 origin-bottom animate-spin z-10" style={{animationDuration: '3s'}}></div>
-                  
-                  {/* CSS Animated Images */}
-                  <img src={`data:image/png;base64,${images.t0}`} className="absolute inset-0 w-full h-full object-cover frame-1" />
-                  <img src={`data:image/png;base64,${images.predicted}`} className="absolute inset-0 w-full h-full object-cover frame-2" />
-                  <img src={`data:image/png;base64,${images.t30}`} className="absolute inset-0 w-full h-full object-cover frame-3" />
-                </div>
-                <p className="mt-4 text-[10px] font-mono text-slate-500 text-center">TIME-LAPSE INTERPOLATION LOOP</p>
+              <div className={styles.animationOutput}>
+                <video
+                  ref={outputVideoRef}
+                  className={styles.outputVideo}
+                  aria-label="Interpolated output animation"
+                  autoPlay
+                  loop
+                  muted
+                  preload="auto"
+                  playsInline
+                >
+                  <source src={videoSrc} type="video/mp4" />
+                </video>
+                <p>Looping interpolated output preview.</p>
               </div>
-
             </div>
-          )}
-        </div>
+          </div>
+        </section>
+
+        <section
+          id="faq"
+          className={`${styles.section} ${styles.faqSection} ${revealClass(
+            "faq",
+          )}`}
+          data-reveal
+        >
+          <div className={styles.sectionIntro}>
+            <h2>Short answers.</h2>
+            <p>Everything essential, without the product-page fog.</p>
+          </div>
+          <div className={styles.faqList}>
+            {faqs.map((faq, index) => (
+              <div className={styles.faqItem} key={faq.question}>
+                <button
+                  type="button"
+                  onClick={() => setOpenFaq(openFaq === index ? -1 : index)}
+                  aria-expanded={openFaq === index}
+                >
+                  <span>{faq.question}</span>
+                  <span>{openFaq === index ? "−" : "+"}</span>
+                </button>
+                <div className={openFaq === index ? styles.faqOpen : ""}>
+                  <p>{faq.answer}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section
+          id="newsletter"
+          className={`${styles.newsletter} ${revealClass("newsletter")}`}
+          data-reveal
+        >
+          <div>
+            <h2>Get interpolation notes.</h2>
+            <p>
+              Monthly product updates, research summaries, and workflow examples.
+            </p>
+          </div>
+          <form onSubmit={handleNewsletter}>
+            <input
+              type="email"
+              value={newsletterEmail}
+              onChange={(event) => setNewsletterEmail(event.target.value)}
+              placeholder="you@company.com"
+              aria-label="Email address"
+              required
+            />
+            <button type="submit">Subscribe</button>
+          </form>
+          {newsletterDone ? <span>Subscribed. We will keep it useful.</span> : null}
+        </section>
       </main>
-    </div>
+
+      <button
+        className={styles.stickyCta}
+        type="button"
+        onClick={() => handleNavigation("#studio")}
+      >
+        Run a frame
+      </button>
+    </>
   );
 }
