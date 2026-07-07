@@ -376,23 +376,27 @@ export default function InterpolatorPage() {
     }
 
     try {
-      setTerminalText("[SYS] Initializing Gradio client...\n");
-      const { Client } = await import("@gradio/client");
-
-      setTerminalText((prev) => prev + "[SYS] Connecting to maxiu-uzumaki/satellite-interpolator-api...\n");
-      const client = await Client.connect("maxiu-uzumaki/satellite-interpolator-api", {
-        hf_token: process.env.NEXT_PUBLIC_HF_TOKEN
-      } as any);
+      setTerminalText("[SYS] Connecting to local backend proxy...\n");
+      const formData = new FormData();
+      formData.append("file1", file1);
+      formData.append("file2", file2);
 
       setTerminalText((prev) => prev + "[SYS] Connection established. Uploading frames...\n");
       setTerminalText((prev) => prev + `[DATA] Frame 1: ${file1.name} (${(file1.size / 1024).toFixed(1)} KB)\n`);
       setTerminalText((prev) => prev + `[DATA] Frame 2: ${file2.name} (${(file2.size / 1024).toFixed(1)} KB)\n`);
       setTerminalText((prev) => prev + "[MODEL] Running interpolation model (estimating temporal flow)...\n");
 
-      const result = await client.predict("/process_satellite_frames", {
-        file1: file1,
-        file2: file2,
+      const response = await fetch("/api/interpolate", {
+        method: "POST",
+        body: formData,
       });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || `Server responded with status ${response.status}`);
+      }
+
+      const result = await response.json();
 
       setTerminalText((prev) => prev + "[MODEL] Frame interpolation completed successfully.\n");
 
