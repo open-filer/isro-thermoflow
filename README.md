@@ -85,3 +85,8 @@ built with
 if it works first try...
 
 that's suspicious af.
+
+
+## ⚖️ License
+
+Distributed under the Custom License. See [LICENSE](LICENSE) for more information.
