@@ -14,8 +14,7 @@ export async function POST(req: NextRequest) {
     }
 
     const token = process.env.HF_TOKEN || process.env.NEXT_PUBLIC_HF_TOKEN;
-
-    // Connect to the Gradio Space using the server-side Hugging Face token
+    
     const client = await Client.connect("maxiu-uzumaki/satellite-interpolator-api", {
       hf_token: token,
     } as any);
